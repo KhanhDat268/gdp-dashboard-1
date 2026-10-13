@@ -1,151 +1,112 @@
-import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import matplotlib.pyplot as plt
+import streamlit as st
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+# Cấu hình trang Streamlit
+st.set_page_config(page_title="Quản lý điểm sinh viên", layout="wide")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+# 1. Hiển thị tiêu đề
+st.title("QUẢN LÝ ĐIỂM SINH VIÊN")
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+# Khởi tạo dữ liệu 10 sinh viên
+data = {
+    "MSSV": ["SV001", "SV002", "SV003", "SV004", "SV005", "SV006", "SV007", "SV008", "SV009", "SV010"],
+    "Họ tên": ["An", "Bình", "Chi", "Dũng", "Hà", "Lan", "Minh", "Nam", "Phúc", "Trang"],
+    "Chuyên cần": [8, 9, 7, 10, 8, 6, 9, 7, 8, 10],
+    "Giữa kỳ": [7, 8, 6, 9, 7, 5, 8, 6, 7, 9],
+    "Cuối kỳ": [9, 8, 7, 10, 6, 7, 9, 8, 7, 10]
+}
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+df = pd.DataFrame(data)
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+# Tính điểm Tổng kết
+df["Tổng kết"] = (0.2 * df["Chuyên cần"] + 0.3 * df["Giữa kỳ"] + 0.5 * df["Cuối kỳ"]).round(2)
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+# Hàm xếp loại
+def xep_loai(diem):
+    if diem >= 8.5:
+        return "Giỏi"
+    elif diem >= 7.0:
+        return "Khá"
+    elif diem >= 5.0:
+        return "Trung bình"
+    else:
+        return "Yếu"
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+df["Xếp loại"] = df["Tổng kết"].apply(xep_loai)
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+# 2. Hiển thị bảng điểm của 10 sinh viên
+st.subheader("📋 Bảng điểm sinh viên")
+st.dataframe(df[["Họ tên", "Chuyên cần", "Giữa kỳ", "Cuối kỳ", "Tổng kết", "Xếp loại"]], use_container_width=True)
 
-    return gdp_df
+st.markdown("---")
 
-gdp_df = get_gdp_data()
+# Các tính toán thống kê
+diem_tb = df["Tổng kết"].mean()
+diem_cao_nhat = df["Tổng kết"].max()
+sv_cao_nhat = df[df["Tổng kết"] == diem_cao_nhat]
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+diem_thap_nhat = df["Tổng kết"].min()
+sv_thap_nhat = df[df["Tổng kết"] == diem_thap_nhat]
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
+so_sv_dat = (df["Tổng kết"] >= 5).sum()
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
+# 3, 4, 5. Hiển thị các thông tin thống kê
+st.subheader("📊 Thống kê chung")
+col1, col2, col3, col4 = st.columns(4)
 
-# Add some spacing
-''
-''
+with col1:
+    st.metric(label="Điểm trung bình của lớp", value=f"{diem_tb:.2f}")
 
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
+with col2:
+    st.metric(label="Số sinh viên đạt (>= 5.0)", value=f"{so_sv_dat} / {len(df)}")
 
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
+with col3:
+    d_cao = ", ".join(f"{row['Họ tên']} ({row['Tổng kết']})" for _, row in sv_cao_nhat.iterrows())
+    st.markdown(f"**Sinh viên điểm cao nhất:**\n{d_cao}")
 
-countries = gdp_df['Country Code'].unique()
+with col4:
+    d_thap = ", ".join(f"{row['Họ tên']} ({row['Tổng kết']})" for _, row in sv_thap_nhat.iterrows())
+    st.markdown(f"**Sinh viên điểm thấp nhất:**\n{d_thap}")
 
-if not len(countries):
-    st.warning("Select at least one country")
+st.markdown("---")
 
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
+# 6 & 7. Danh sách sổ xuống (Selectbox) và hiển thị chi tiết sinh viên
+st.subheader("🔍 Tra cứu thông tin sinh viên")
+danh_sach_sv = df["Họ tên"].tolist()
+sv_duoc_chon = st.selectbox("Chọn một sinh viên:", danh_sach_sv)
 
-''
-''
-''
+# Hiển thị thông tin sinh viên được chọn
+thong_tin_sv = df[df["Họ tên"] == sv_duoc_chon].iloc[0]
 
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Chuyên cần", thong_tin_sv["Chuyên cần"])
+c2.metric("Giữa kỳ", thong_tin_sv["Giữa kỳ"])
+c3.metric("Cuối kỳ", thong_tin_sv["Cuối kỳ"])
+c4.metric("Điểm tổng kết", thong_tin_sv["Tổng kết"])
+c5.metric("Xếp loại", thong_tin_sv["Xếp loại"])
 
-st.header('GDP over time', divider='gray')
+st.markdown("---")
 
-''
+# 8. Hiển thị biểu đồ cột điểm tổng kết
+st.subheader("📈 Biểu đồ cột điểm tổng kết của 10 sinh viên")
+fig, ax = plt.subplots(figsize=(10, 4))
+bars = ax.bar(df["Họ tên"], df["Tổng kết"], color="#4C72B0")
 
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
+# Thêm điểm số lên trên từng cột
+for bar in bars:
+    yval = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width()/2, yval + 0.1, f"{yval:.2f}", ha='center', va='bottom', fontsize=9)
 
-''
-''
+ax.set_title("ĐIỂM TỔNG KẾT CỦA 10 SINH VIÊN", fontsize=12, fontweight='bold')
+ax.set_xlabel("Họ tên sinh viên")
+ax.set_ylabel("Điểm tổng kết")
+ax.set_ylim(0, 10.5)
+plt.xticks(rotation=45)
+plt.tight_layout()
 
+st.pyplot(fig)
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+# 9. Hiển thị Họ tên và MSSV ở cuối trang với kích thước chữ nhỏ
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.markdown("<p style='font-size: 12px; color: gray; text-align: center;'>Người tạo ứng dụng: Nguyễn Văn A - MSSV: 12345678</p>", unsafe_allow_html=True)
