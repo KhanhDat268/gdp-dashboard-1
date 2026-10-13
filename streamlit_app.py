@@ -1,112 +1,83 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
+import pandas as pd
 
-# Cấu hình trang Streamlit
-st.set_page_config(page_title="Quản lý điểm sinh viên", layout="wide")
-
-# 1. Hiển thị tiêu đề
+# Tiêu đề ứng dụng
 st.title("QUẢN LÝ ĐIỂM SINH VIÊN")
 
-# Khởi tạo dữ liệu 10 sinh viên
+# 1. Khởi tạo dữ liệu cho 10 sinh viên
 data = {
-    "MSSV": ["SV001", "SV002", "SV003", "SV004", "SV005", "SV006", "SV007", "SV008", "SV009", "SV010"],
-    "Họ tên": ["An", "Bình", "Chi", "Dũng", "Hà", "Lan", "Minh", "Nam", "Phúc", "Trang"],
-    "Chuyên cần": [8, 9, 7, 10, 8, 6, 9, 7, 8, 10],
-    "Giữa kỳ": [7, 8, 6, 9, 7, 5, 8, 6, 7, 9],
-    "Cuối kỳ": [9, 8, 7, 10, 6, 7, 9, 8, 7, 10]
+    'Ho_va_ten': [
+        'An', 'Bình', 'Chi', 'Dũng','Hà','Lan',
+        'Minh', 'Nam', 'Phúc', 'Trang'
+    ],
+    'Chuyen_can': [8, 9, 7, 10, 8, 6, 9, 7, 8, 10],
+    'Giua_ky': [7,8, 6, 9, 7, 5, 8, 6, 7,9],
+    'Cuoi_ky': [9, 8, 7, 10, 6, 7, 9, 8, 7, 10]
 }
 
+# 2. Tạo DataFrame từ dữ liệu
 df = pd.DataFrame(data)
 
-# Tính điểm Tổng kết
-df["Tổng kết"] = (0.2 * df["Chuyên cần"] + 0.3 * df["Giữa kỳ"] + 0.5 * df["Cuối kỳ"]).round(2)
+# 3. Tính điểm tổng kết (20% Chuyên cần + 30% Giữa kỳ + 50% Cuối kỳ) và làm tròn 2 chữ số
+df['Tong_ket'] = (0.2 * df['Chuyen_can'] + 0.3 * df['Giua_ky'] + 0.5 * df['Cuoi_ky']).round(2)
 
-# Hàm xếp loại
-def xep_loai(diem):
+# 4. Định nghĩa hàm xếp loại sinh viên dựa trên điểm tổng kết
+def phan_loai(diem):
     if diem >= 8.5:
-        return "Giỏi"
+        return 'Giỏi'
     elif diem >= 7.0:
-        return "Khá"
+        return 'Khá'
     elif diem >= 5.0:
-        return "Trung bình"
+        return 'Trung bình'
     else:
-        return "Yếu"
+        return 'Yếu'
 
-df["Xếp loại"] = df["Tổng kết"].apply(xep_loai)
+# 5. Tạo thêm cột Xep_loai bằng cách áp dụng hàm phan_loai vào cột Tong_ket
+df['Xep_loai'] = df['Tong_ket'].apply(phan_loai)
 
-# 2. Hiển thị bảng điểm của 10 sinh viên
-st.subheader("📋 Bảng điểm sinh viên")
-st.dataframe(df[["Họ tên", "Chuyên cần", "Giữa kỳ", "Cuối kỳ", "Tổng kết", "Xếp loại"]], use_container_width=True)
+# 6. Hiển thị bảng dữ liệu sinh viên lên web
+st.subheader("📋 Bảng danh sách điểm sinh viên")
+st.dataframe(df, use_container_width=True)
 
+# 7. Thống kê chung
+st.subheader("📊 Kết quả thống kê")
+
+# Tính điểm tổng kết trung bình của lớp
+diem_tb_lop = df['Tong_ket'].mean()
+st.write(f"- **Điểm tổng kết trung bình của lớp:** {diem_tb_lop:.2f}")
+
+# Tìm sinh viên có điểm tổng kết cao nhất
+sv_cao_nhat = df[df['Tong_ket'] == df['Tong_ket'].max()]
+for index, row in sv_cao_nhat.iterrows():
+    st.write(f"- **Sinh viên có điểm tổng kết cao nhất:** {row['Ho_va_ten']} ({row['Tong_ket']} điểm)")
+
+# Tìm sinh viên có điểm tổng kết thấp nhất
+sv_thap_nhat = df[df['Tong_ket'] == df['Tong_ket'].min()]
+for index, row in sv_thap_nhat.iterrows():
+    st.write(f"- **Sinh viên có điểm tổng kết thấp nhất:** {row['Ho_va_ten']} ({row['Tong_ket']} điểm)")
+
+# Đếm số sinh viên đạt (điểm tổng kết >= 5)
+so_sv_dat = df[df['Tong_ket'] >= 5.0].shape[0]
+st.write(f"- **Số sinh viên đạt (Tổng kết >= 5):** {so_sv_dat} sinh viên")
+
+# 8. Tra cứu chi tiết từng sinh viên (Selectbox)
+st.subheader("🔍 Tra cứu chi tiết sinh viên")
+selected_name = st.selectbox("Chọn tên sinh viên để xem:", df['Ho_va_ten'].tolist())
+sv_info = df[df['Ho_va_ten'] == selected_name].iloc[0]
+
+st.info(f"""
+- **Họ tên:** {sv_info['Ho_va_ten']}
+- **Điểm Chuyên cần:** {sv_info['Chuyen_can']}
+- **Điểm Giữa kỳ:** {sv_info['Giua_ky']}
+- **Điểm Cuối kỳ:** {sv_info['Cuoi_ky']}
+- **Điểm Tổng kết:** {sv_info['Tong_ket']}
+- **Xếp loại:** {sv_info['Xep_loai']}
+""")
+
+# 9. Biểu đồ cột điểm tổng kết
+st.subheader("📈 Biểu đồ điểm tổng kết của 10 sinh viên")
+chart_data = df.set_index('Ho_va_ten')['Tong_ket']
+st.bar_chart(chart_data)
+# 10. Chân trang (Footer) thông tin cá nhân
 st.markdown("---")
-
-# Các tính toán thống kê
-diem_tb = df["Tổng kết"].mean()
-diem_cao_nhat = df["Tổng kết"].max()
-sv_cao_nhat = df[df["Tổng kết"] == diem_cao_nhat]
-
-diem_thap_nhat = df["Tổng kết"].min()
-sv_thap_nhat = df[df["Tổng kết"] == diem_thap_nhat]
-
-so_sv_dat = (df["Tổng kết"] >= 5).sum()
-
-# 3, 4, 5. Hiển thị các thông tin thống kê
-st.subheader("📊 Thống kê chung")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(label="Điểm trung bình của lớp", value=f"{diem_tb:.2f}")
-
-with col2:
-    st.metric(label="Số sinh viên đạt (>= 5.0)", value=f"{so_sv_dat} / {len(df)}")
-
-with col3:
-    d_cao = ", ".join(f"{row['Họ tên']} ({row['Tổng kết']})" for _, row in sv_cao_nhat.iterrows())
-    st.markdown(f"**Sinh viên điểm cao nhất:**\n{d_cao}")
-
-with col4:
-    d_thap = ", ".join(f"{row['Họ tên']} ({row['Tổng kết']})" for _, row in sv_thap_nhat.iterrows())
-    st.markdown(f"**Sinh viên điểm thấp nhất:**\n{d_thap}")
-
-st.markdown("---")
-
-# 6 & 7. Danh sách sổ xuống (Selectbox) và hiển thị chi tiết sinh viên
-st.subheader("🔍 Tra cứu thông tin sinh viên")
-danh_sach_sv = df["Họ tên"].tolist()
-sv_duoc_chon = st.selectbox("Chọn một sinh viên:", danh_sach_sv)
-
-# Hiển thị thông tin sinh viên được chọn
-thong_tin_sv = df[df["Họ tên"] == sv_duoc_chon].iloc[0]
-
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Chuyên cần", thong_tin_sv["Chuyên cần"])
-c2.metric("Giữa kỳ", thong_tin_sv["Giữa kỳ"])
-c3.metric("Cuối kỳ", thong_tin_sv["Cuối kỳ"])
-c4.metric("Điểm tổng kết", thong_tin_sv["Tổng kết"])
-c5.metric("Xếp loại", thong_tin_sv["Xếp loại"])
-
-st.markdown("---")
-
-# 8. Hiển thị biểu đồ cột điểm tổng kết
-st.subheader("📈 Biểu đồ cột điểm tổng kết của 10 sinh viên")
-fig, ax = plt.subplots(figsize=(10, 4))
-bars = ax.bar(df["Họ tên"], df["Tổng kết"], color="#4C72B0")
-
-# Thêm điểm số lên trên từng cột
-for bar in bars:
-    yval = bar.get_height()
-    ax.text(bar.get_x() + bar.get_width()/2, yval + 0.1, f"{yval:.2f}", ha='center', va='bottom', fontsize=9)
-
-ax.set_title("ĐIỂM TỔNG KẾT CỦA 10 SINH VIÊN", fontsize=12, fontweight='bold')
-ax.set_xlabel("Họ tên sinh viên")
-ax.set_ylabel("Điểm tổng kết")
-ax.set_ylim(0, 10.5)
-plt.xticks(rotation=45)
-plt.tight_layout()
-
-st.pyplot(fig)
-
-# 9. Hiển thị Họ tên và MSSV ở cuối trang với kích thước chữ nhỏ
-st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown("<p style='font-size: 12px; color: gray; text-align: center;'>Người tạo ứng dụng: Nguyễn Văn A - MSSV: 12345678</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: small; color: gray;'>Họ tên: [Dương Huỳnh Khánh Đạt] – MSSV: [040208011265]</p>", unsafe_allow_html=True)
